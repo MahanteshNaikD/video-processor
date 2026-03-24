@@ -101,13 +101,14 @@ async function runProcessing(bucket, objectName) {
   if (!pathInfo) {
     throw new Error(`Invalid upload path (expected uploads/userId/jobId/file): ${objectName}`);
   }
-  const { userId, jobId } = pathInfo;
+  const { userId } = pathInfo;
   const { bucketName: defaultBucket } = getStorage();
   const bucketName = bucket || defaultBucket;
 
   const tmpDir = path.join(os.tmpdir(), `video-${jobId}-${Date.now()}`);
   const outputDir = path.join(tmpDir, 'out');
   const inputPath = path.join(tmpDir, 'input.mp4');
+  const jobId = new Date().getTime();
 
   try {
     await fs.mkdir(path.dirname(inputPath), { recursive: true });
