@@ -101,14 +101,13 @@ async function runProcessing(bucket, objectName) {
   if (!pathInfo) {
     throw new Error(`Invalid upload path (expected uploads/userId/jobId/file): ${objectName}`);
   }
-  const { userId } = pathInfo;
+  const { userId, jobId } = pathInfo;
   const { bucketName: defaultBucket } = getStorage();
   const bucketName = bucket || defaultBucket;
 
   const tmpDir = path.join(os.tmpdir(), `video-${jobId}-${Date.now()}`);
   const outputDir = path.join(tmpDir, 'out');
   const inputPath = path.join(tmpDir, 'input.mp4');
-  const jobId = new Date().getTime();
 
   try {
     await fs.mkdir(path.dirname(inputPath), { recursive: true });
@@ -196,6 +195,13 @@ app.post('/', async (req, res) => {
   }
 
   const { bucket, name } = payload;
+  const pathInfo = parseUploadPath(name);
+  if (!pathInfo) {
+    // Ignore non-source objects (e.g. processed/* outputs) to avoid trigger loops.
+    console.log('Skipping non-upload object:', name);
+    return res.status(200).json({ skipped: true, reason: 'non-upload-object', name });
+  }
+
   console.log('Processing:', bucket, name);
 
   try {
@@ -203,7 +209,6 @@ app.post('/', async (req, res) => {
     return res.status(200).json(result);
   } catch (err) {
     console.error('Processing failed:', err);
-    const pathInfo = parseUploadPath(name);
     if (pathInfo) {
       await notifyBackend({
         jobId: pathInfo.jobId,
